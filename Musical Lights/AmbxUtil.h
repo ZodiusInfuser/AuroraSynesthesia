@@ -1,0 +1,35 @@
+#pragma once
+
+//DEFINITIONS
+
+#define MIN_LIGHT_INTENSITY		0.005f
+
+
+//ENUMERATORS
+
+enum LightPosition
+{
+	NORTH			= 0,
+	NORTH_EAST		= 1,
+	EAST			= 2,
+	SOUTH_EAST		= 3,
+	SOUTH			= 4,
+	SOUTH_WEST		= 5,
+	WEST			= 6,
+	NORTH_WEST		= 7,
+	CENTRE			= 8,
+	NUM_POSITIONS	= 9
+};
+
+enum PositionAngle
+{
+	NORTH_ANGLE			= 0,
+	NORTH_EAST_ANGLE	= 45,
+	EAST_ANGLE			= 90,
+	SOUTH_EAST_ANGLE	= 135,
+	SOUTH_ANGLE			= 180,
+	SOUTH_WEST_ANGLE	= 225,
+	WEST_ANGLE			= 270,
+	NORTH_WEST_ANGLE	= 315,
+	INVALID_ANGLE		= -1
+};
