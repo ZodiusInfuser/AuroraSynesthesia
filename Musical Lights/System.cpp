@@ -3,8 +3,10 @@
 
 System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, IlluminationPreset illumination, VisualisationPreset visualisation,
 	ModeResponceSetting responce, ScreenSamplingSetting sampling, WhiteBalanceSetting whiteBalance,
-	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement)
+	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, const WCHAR *inipath)
 {
+	lstrcpy(iniPath, inipath);
+
 	icon_ = icon;
 
 	updateTime_ = DEFAULT_UPDATE_TIME;
@@ -653,12 +655,10 @@ void System::execute(void)
 
 					screen_->advanceIlluminateEmulation(updateTime_);
 
-					do
-					{
+					do {
 						//Reinitialise the screen capturer in the event that the screen
 						//has changed and it is no longer able to get pixel data from it.
-						if(screen_->invalidScreen())
-						{
+						if(screen_->invalidScreen()) {
 							screen_->reinitialiseScreen();
 						}
 
@@ -667,7 +667,7 @@ void System::execute(void)
 						screen_->acquireScreenRegion(right, ScreenRegion(0.667f, 1.0f, 0.0f, 1.0f));
 
 						screenAttempts++;
-					}while(screen_->invalidScreen() && (screenAttempts < MAX_SCREEN_ATTEMPTS));
+					} while (screen_->invalidScreen() && (screenAttempts < MAX_SCREEN_ATTEMPTS));
 
 					amBX_->setAmbient(left, right, centre);
 				}
@@ -715,4 +715,212 @@ void System::execute(void)
 			}
 		}
 	}
+}
+
+bool System::saveSettings(void) {
+	if (!iniPath[0]) {
+		return false;
+	}
+	CSimpleIniA ini(false, true, true);
+
+//Modes
+	const char *value;
+	switch (screenMode_) {
+	case AVERAGE_SCREEN:
+		value = "Average";
+		break;
+	case ILLUMINATE_SCREEN:
+		value = "Illuminate";
+		break;
+	case DISABLE_SCREEN:
+		value = "Disable";
+		break;
+	default:
+	case VIBRANT_SCREEN:
+		value = "Vibrant";
+		break;
+	}
+	ini.SetValue("Modes", "Aurora", value);
+	switch (spectrumMode_) {
+	case AMBIENT_SPECTRUM:
+		value = "Ambient";
+		break;
+	case IMMERSIVE_SPECTRUM:
+		value = "Immersive";
+		break;
+	case DISABLE_SPECTRUM:
+		value = "Disable";
+		break;
+	default:
+	case REACTIVE_SPECTRUM:
+		value = "Reactive";
+		break;
+	}
+	ini.SetValue("Modes", "Synesthesia", value);
+//Presets
+	switch (illuminationPreset_) {
+	case SPECTRUM_ILLUMINATION:
+		value = "Spectrum";
+		break;
+	case CANDLE_ILLUMINATION:
+		value = "Candle";
+		break;
+	case RELAX_ILLUMINATION:
+		value = "Relax";
+		break;
+	default:
+	case ORIGINAL_ILLUMINATION:
+		value = "Original";
+		break;
+	}
+	ini.SetValue("Presets", "Illumination", value);
+	switch (visualisationPreset_) {
+	case LIQUID_VISUALISATION:
+		value = "Liquid";
+		break;
+	case ENERGY_VISUALISATION:
+		value = "Energy";
+		break;
+	default:
+	case NATURAL_VISUALISATION:
+		value = "Natural";
+		break;
+	}
+	ini.SetValue("Presets", "Visualisation", value);
+//Settings
+	switch (modeResponceSetting_) {
+	case LOW_RESPONCE:
+		value = "Low";
+		break;
+	case HIGH_RESPONCE:
+		value = "High";
+		break;
+	default:
+	case STANDARD_RESPONCE:
+		value = "Standard";
+		break;
+	}
+	ini.SetValue("Settings", "ModeResponse", value);
+	switch (screenSamplingSetting_) {
+	case LOW_SAMPLING:
+		value = "Low";
+		break;
+	case HIGH_SAMPLING:
+		value = "High";
+		break;
+	default:
+	case STANDARD_SAMPLING:
+		value = "Standard";
+		break;
+	}
+	ini.SetValue("Settings", "ScreenSampling", value);
+	switch (lightSensitivitySetting_) {
+	case PFIVE_SENSITIVITY:
+		value = "0.5";
+		break;
+	case ONE_SENSITIVITY:
+		value = "1";
+		break;
+	case TWO_SENSITIVITY:
+		value = "2";
+		break;
+	case FOUR_SENSITIVITY:
+		value = "4";
+		break;
+	case EIGHT_SENSITIVITY:
+		value = "8";
+		break;
+	case SIXTEEN_SENSITIVITY:
+		value = "16";
+		break;
+	case THIRTYTWO_SENSITIVITY:
+		value = "32";
+		break;
+	case SIXTYFOUR_SENSITIVITY:
+		value = "64";
+		break;
+	case ONETWOEIGHT_SENSITIVITY:
+		value = "128";
+		break;
+	case TWOFIVESIX_SENSITIVITY:
+		value = "256";
+		break;
+	default:
+	case ADAPTIVE_SENSITIVITY:
+		value = "Delta";
+		break;
+	}
+	ini.SetValue("Settings", "SoundSensitivity", value);
+	switch (whiteBalanceSetting_) {
+	case OFF_WHITE_BALANCE:
+		value = "0";
+		break;
+	case ONE_WHITE_BALANCE:
+		value = "1";
+		break;
+	case THREE_WHITE_BALANCE:
+		value = "3";
+		break;
+	case FOUR_WHITE_BALANCE:
+		value = "4";
+		break;
+	case FIVE_WHITE_BALANCE:
+		value = "5";
+		break;
+	default:
+	case TWO_WHITE_BALANCE:
+		value = "2";
+		break;
+	}
+	ini.SetValue("Settings", "WhiteBalance", value);
+	switch (lightBrightnessSetting_) {
+	case TEN_BRIGHTNESS:
+		value = "10";
+		break;
+	case TWENTY_BRIGHTNESS:
+		value = "20";
+		break;
+	case THIRTY_BRIGHTNESS:
+		value = "30";
+		break;
+	case FOURTY_BRIGHTNESS:
+		value = "40";
+		break;
+	case FIFTY_BRIGHTNESS:
+		value = "50";
+		break;
+	case SIXTY_BRIGHTNESS:
+		value = "60";
+		break;
+	case SEVENTY_BRIGHTNESS:
+		value = "70";
+		break;
+	case EIGHTY_BRIGHTNESS:
+		value = "80";
+		break;
+	case NINETY_BRIGHTNESS:
+		value = "90";
+		break;
+	default:
+	case ONEHUNDRED_BRIGHTNESS:
+		value = "100";
+		break;
+	}
+	ini.SetValue("Settings", "LightBrightness", value);
+	switch (lightingArrangementSetting_){
+	case SURROUND_ARRANGEMENT:
+		value = "Surround";
+		break;
+	default:
+	case STEREO_ARRANGEMENT:
+		value = "Stereo";
+		break;
+	}
+	ini.SetValue("Settings", "LightingArrangement", value);
+
+	SI_Error rc = ini.SaveFile(iniPath, false);
+	if (rc < 0) {
+		return false;
+	}
+	return true;
 }

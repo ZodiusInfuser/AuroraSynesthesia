@@ -6,6 +6,7 @@
 #include "Spectrum.h"
 #include "AmbxEngine.h"
 #include "Icon.h"
+#include "SimpleIni.h"
 
 
 //DEFINITIONS
@@ -155,7 +156,7 @@ class System
 public:
 	System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, IlluminationPreset illumination, VisualisationPreset visualisation,
 		ModeResponceSetting responce, ScreenSamplingSetting sampling, WhiteBalanceSetting whiteBalance,
-		LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement);
+		LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, const WCHAR *inipath);
 	~System(void);
 
 public:
@@ -199,6 +200,8 @@ public:
 
 	void execute(void);
 
+	bool saveSettings(void);
+
 private:
 	unsigned int updateTime_;
 
@@ -228,4 +231,6 @@ private:
 	Screen* screen_;
 	Spectrum* spectrum_;
 	AmbxEngine* amBX_;
+
+	WCHAR iniPath[MAX_PATH];
 };
