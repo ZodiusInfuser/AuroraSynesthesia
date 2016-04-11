@@ -104,12 +104,12 @@ System::~System(void)
 
 void System::reinitialise(void)
 {
-	if(synesthesiaInitialised_)
-	{
+	//worked fine after sleep mode on win 7 sp1 - disabling for now
+/*	if(synesthesiaInitialised_) {
 		//Odd issue takes place after restart preventing FMOD and Synesthesia from working, but neither produce any errors.
 		changeSpectrumMode(DISABLE_SPECTRUM);
 		synesthesiaInitialised_ = false;
-	}
+	}*/
 }
 
 bool System::successfullyInitialised(void)

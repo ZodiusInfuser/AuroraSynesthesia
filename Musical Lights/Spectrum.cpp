@@ -53,7 +53,8 @@ Spectrum::Spectrum(bool &creationSucceeded)
 				soundInfo.format = FMOD_SOUND_FORMAT_PCM16;
 
 				//
-				if(system_->createSound(NULL, FMOD_2D | FMOD_OPENUSER | FMOD_LOOP_NORMAL | FMOD_SOFTWARE, &soundInfo, &sound) == FMOD_OK)
+				FMOD_RESULT err = system_->createSound(NULL, FMOD_2D | FMOD_OPENUSER | FMOD_LOOP_NORMAL | FMOD_SOFTWARE, &soundInfo, &sound);
+				if(err == FMOD_OK)
 				{
 					//
 					system_->recordStart(SOUND_IDENTIFIER, sound, true);
