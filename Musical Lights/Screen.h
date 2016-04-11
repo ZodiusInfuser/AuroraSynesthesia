@@ -79,6 +79,8 @@ public:
 
 	void modifySampleSize(float factor);
 
+	//aero support
+	void initDIBits(void);
 private:
 	HDC screen_;
 	bool deviceContextInvalid_;
@@ -102,6 +104,10 @@ private:
 	unsigned int pixelsProcessed_;
 	COLORREF pixelColour_;
 	RGBColour rgbPixel_;
+	//aero support
+	HBITMAP bitmap_;
+	BITMAPINFO bitmapInfo_;
+	BYTE *bufPixels;
 
 	list<ColourPeriod>* colourPeriods_;
 	list<ColourPeriod>::iterator currentPeriod_;

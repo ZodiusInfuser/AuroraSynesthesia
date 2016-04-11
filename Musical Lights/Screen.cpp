@@ -31,12 +31,10 @@ ColourPeriod::ColourPeriod(void)
 	duration = 0;
 }
 
-
-
 Screen::Screen(bool &creationSucceeded)
 {
 	//
-	screen_ = GetWindowDC(NULL);
+	screen_ = GetDC(NULL);
 
 	deviceContextInvalid_ = false;
 
@@ -72,13 +70,15 @@ Screen::Screen(bool &creationSucceeded)
 	horisontalSamples_ = HORISONTAL_SAMPLES;
 	verticalSamples_ = VERTICAL_SAMPLES;
 
+	initDIBits();
+
 	creationSucceeded = true;
 }
 
 Screen::Screen(PixelProcessor* processor, bool &creationSucceeded)
 {
 	//
-	screen_ = GetWindowDC(NULL);
+	screen_ = GetDC(NULL);
 
 	deviceContextInvalid_ = false;
 
@@ -111,6 +111,8 @@ Screen::Screen(PixelProcessor* processor, bool &creationSucceeded)
 	colourPeriods_ = new list<ColourPeriod>();
 	illuminateEmulationEnabled_ = false;
 
+	initDIBits();
+
 	creationSucceeded = true;
 }
 
@@ -119,6 +121,9 @@ Screen::~Screen(void)
 	delete colourPeriods_;
 
 	ReleaseDC(NULL, screen_);
+	DeleteObject(bitmap_);
+	if (bufPixels)
+		delete[] bufPixels;
 }
 
 void Screen::enableIlluminateEmulation(void)
@@ -215,18 +220,15 @@ void Screen::excludeAllColourPeriods(void)
 	}
 }
 
-void Screen::acquireScreenRegion(RGBColour &colour, ScreenRegion &region)
-{
+void Screen::acquireScreenRegion(RGBColour &colour, ScreenRegion &region) {
 	colour = RGBColour();
 
-	if(!illuminateEmulationEnabled_)
-	{
+	if(!illuminateEmulationEnabled_) {
 		//Check whether there is a processor present to perform screen analysis, and
 		//that Vista/Win7 Aero is either disabled or not present on the users system
-		if((processor_ != NULL) && (!aeroPresent_ || aeroDisabled_))
-		{
+		//aero support
+		if((processor_ != NULL)) {
 			pixelsProcessed_ = 0;
-
 
 			unsigned int minXPos = (unsigned int)(width_ * region.minHorisontal);
 			unsigned int maxXPos = (unsigned int)(width_ * region.maxHorisontal);
@@ -238,38 +240,47 @@ void Screen::acquireScreenRegion(RGBColour &colour, ScreenRegion &region)
 			unsigned int ySeperation = height_ / verticalSamples_;
 
 			//
-			for(unsigned int y = minYPos + (ySeperation / 2); y < maxYPos; y += ySeperation)
-			{
-				for(unsigned int x = minXPos + (xSeperation / 2); x < maxXPos; x += xSeperation)
-				{
-					pixelColour_ = GetPixel(screen_, x, y);				
+			if ((!aeroPresent_ || aeroDisabled_)) {
+				for (unsigned int y = minYPos + (ySeperation / 2); y < maxYPos; y += ySeperation) {
+					for (unsigned int x = minXPos + (xSeperation / 2); x < maxXPos; x += xSeperation) {
+						pixelColour_ = GetPixel(screen_, x, y);
 
-					if(pixelColour_ != CLR_INVALID)
-					{
-						rgbPixel_ = RGBColour((float)GetRValue(pixelColour_) / 255, (float)GetGValue(pixelColour_) / 255, (float)GetBValue(pixelColour_) / 255);
-						//SetPixel(screen_, x, y, RGB(255 - GetRValue(pixelColour_), 255 - GetGValue(pixelColour_), 255 - GetBValue(pixelColour_)));
+						if (pixelColour_ != CLR_INVALID) {
+							rgbPixel_ = RGBColour((float)GetRValue(pixelColour_) / 255, (float)GetGValue(pixelColour_) / 255, (float)GetBValue(pixelColour_) / 255);
+							//SetPixel(screen_, x, y, RGB(255 - GetRValue(pixelColour_), 255 - GetGValue(pixelColour_), 255 - GetBValue(pixelColour_)));
 
-						processor_->processPixel(colour, rgbPixel_);
+							processor_->processPixel(colour, rgbPixel_);
 
-						pixelsProcessed_++;
+							pixelsProcessed_++;
+						} else {
+							deviceContextInvalid_ = true;
+						}
 					}
-					else
-					{
-						deviceContextInvalid_ = true;
+				}
+			} else {
+				// get the actual bitmap buffer
+				if (0 != GetDIBits(screen_, bitmap_, 0, bitmapInfo_.bmiHeader.biHeight, (LPVOID)bufPixels, &bitmapInfo_, DIB_RGB_COLORS)) {
+					for (unsigned int y = minYPos + (ySeperation / 2); y < maxYPos; y += ySeperation) {
+						for (unsigned int x = minXPos + (xSeperation / 2); x < maxXPos; x += xSeperation) {
+							BYTE *pixelColour_ = bufPixels + 4 * x + y * 4 * width_;
+
+							rgbPixel_ = RGBColour(pixelColour_[2] / 255.0f, pixelColour_[1] / 255.0f, pixelColour_[0] / 255.0f);
+							processor_->processPixel(colour, rgbPixel_);
+							pixelsProcessed_++;
+						}
 					}
+				} else {
+					deviceContextInvalid_ = true;
 				}
 			}
 
-			if(!deviceContextInvalid_)
-			{
+			if(!deviceContextInvalid_) {
 				colour.r /= pixelsProcessed_;
 				colour.g /= pixelsProcessed_;
 				colour.b /= pixelsProcessed_;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		colour.r = illuminateColour_.r;
 		colour.g = illuminateColour_.g;
 		colour.b = illuminateColour_.b;
@@ -321,15 +332,14 @@ LRESULT CALLBACK ChangeMessageBox(int iCode, WPARAM wParam, LPARAM lParam)
 	return NULL;
 }
 
-bool Screen::changePixelProcessor(PixelProcessor* processor)
-{
-	if(aeroPresent_)
-	{
-		if(processor != NULL)
-		{
+bool Screen::changePixelProcessor(PixelProcessor* processor) {
+	if(aeroPresent_) {
+		if(processor != NULL) {
+			//aero support
+			processor_ = processor;
+			aeroDisabled_ = false;
 			//Determine whether the user wants to disable Aero in order to experience Aurora
-			if(!canDisableAero_)
-			{
+/*			if (!canDisableAero_) {
 				//Hook into and create a message box with renamed button text
 				HHOOK msgBoxHook = SetWindowsHookEx(WH_CBT, &ChangeMessageBox, 0, GetCurrentThreadId());
 				unsigned int messageBoxResult = MessageBox(NULL, L"Average and Vibrant Aurora modes have a known compatability issue with Aero Glass (Desktop Composition) in Windows Vista and 7.\n\nWould you like Aero Glass to be disabled now and all future times Aurora is in use?", L"Destop Composition Detected", MB_YESNOCANCEL | MB_ICONEXCLAMATION | MB_DEFBUTTON1);
@@ -340,39 +350,26 @@ bool Screen::changePixelProcessor(PixelProcessor* processor)
 				forgetCanDisableAero_ = (messageBoxResult == IDNO);
 			}
 
-			if(canDisableAero_)
-			{
+			if (canDisableAero_) {
 				DwmEnableComposition(DWM_EC_DISABLECOMPOSITION);
-
 				processor_ = processor;
-
 				aeroDisabled_ = true;
-			}
-			else
-			{
+			} else {
 				processor_ = NULL;
-
 				aeroDisabled_ = false;
-			}
-		}
-		else
-		{
+			}*/
+		} else {
 			DwmEnableComposition(DWM_EC_ENABLECOMPOSITION);
-
 			processor_ = NULL;
-
 			aeroDisabled_ = false;
 
 			//Did the user wish to have Aurora enabled temporarily?
-			if(forgetCanDisableAero_)
-			{
+			if(forgetCanDisableAero_) {
 				canDisableAero_ = false;
 				forgetCanDisableAero_ = false;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		processor_ = processor;
 	}
 
@@ -395,12 +392,47 @@ void Screen::reinitialiseScreen(void)
 
 	width_ = GetDeviceCaps(screen_, HORZRES);
 	height_ = GetDeviceCaps(screen_, VERTRES);
+
+	//aero support
+	DeleteObject(bitmap_);
+	if (bufPixels)
+		delete[] bufPixels;
+	initDIBits();
 }
 
 void Screen::modifySampleSize(float factor)
 {
 	horisontalSamples_ = (unsigned int)(HORISONTAL_SAMPLES * factor);
 	verticalSamples_ = (unsigned int)(VERTICAL_SAMPLES * factor);
+}
+
+//aero support
+void Screen::initDIBits(void) {
+	// Create compatible DC, create a compatible bitmap and copy the screen using BitBlt()
+	HDC hCaptureDC = CreateCompatibleDC(screen_);
+	bitmap_ = CreateCompatibleBitmap(screen_, width_, height_);
+	HGDIOBJ hOld = SelectObject(hCaptureDC, bitmap_);
+	BOOL bOK = BitBlt(hCaptureDC, 0, 0, width_, height_, screen_, 0, 0, SRCCOPY | CAPTUREBLT);
+
+	SelectObject(hCaptureDC, hOld); // always select the previously selected object once done
+	DeleteDC(hCaptureDC);
+
+	bitmapInfo_ = { 0 };
+	bitmapInfo_.bmiHeader.biSize = sizeof(bitmapInfo_.bmiHeader);
+
+	// Get the BITMAPINFO structure from the bitmap
+	if (0 == GetDIBits(screen_, bitmap_, 0, 0, NULL, &bitmapInfo_, DIB_RGB_COLORS)) {
+		aeroPresent_ = false;
+		return;
+	}
+
+	// create the bitmap buffer
+	bufPixels = new BYTE[bitmapInfo_.bmiHeader.biSizeImage];
+
+	// Better do this here - the original bitmap might have BI_BITFILEDS, which makes it
+	// necessary to read the color table - you might not want this.
+	bitmapInfo_.bmiHeader.biCompression = BI_RGB;
+
 }
 
 
