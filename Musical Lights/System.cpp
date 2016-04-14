@@ -662,6 +662,7 @@ void System::execute(void)
 							screen_->reinitialiseScreen();
 						}
 
+						screen_->takeAeroScreen();
 						screen_->acquireScreenRegion(centre, ScreenRegion(0.333f, 0.667f, 0.0f, 1.0f));
 						screen_->acquireScreenRegion(left, ScreenRegion(0.0f, 0.333f, 0.0f, 1.0f));
 						screen_->acquireScreenRegion(right, ScreenRegion(0.667f, 1.0f, 0.0f, 1.0f));

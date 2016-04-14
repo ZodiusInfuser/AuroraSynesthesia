@@ -70,6 +70,7 @@ public:
 
 	void acquireScreenRegion(RGBColour &colour, ScreenRegion &region);
 	void acquireScreenRegion(HSVColour &colour, ScreenRegion &region);
+	void takeAeroScreen(void);
 
 	bool desktopCompositionPresent(void);
 	bool changePixelProcessor(PixelProcessor* processor);
@@ -107,7 +108,8 @@ private:
 	//aero support
 	HBITMAP bitmap_;
 	BITMAPINFO bitmapInfo_;
-	BYTE *bufPixels;
+	BYTE *bufPixels_;
+	bool tookScreen_;
 
 	list<ColourPeriod>* colourPeriods_;
 	list<ColourPeriod>::iterator currentPeriod_;

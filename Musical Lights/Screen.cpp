@@ -122,8 +122,9 @@ Screen::~Screen(void)
 
 	ReleaseDC(NULL, screen_);
 	DeleteObject(bitmap_);
-	if (bufPixels)
-		delete[] bufPixels;
+	if (bufPixels_)
+		delete[] bufPixels_;
+	bufPixels_ = NULL;
 }
 
 void Screen::enableIlluminateEmulation(void)
@@ -258,11 +259,10 @@ void Screen::acquireScreenRegion(RGBColour &colour, ScreenRegion &region) {
 					}
 				}
 			} else {
-				// get the actual bitmap buffer
-				if (0 != GetDIBits(screen_, bitmap_, 0, bitmapInfo_.bmiHeader.biHeight, (LPVOID)bufPixels, &bitmapInfo_, DIB_RGB_COLORS)) {
+				if (tookScreen_) {
 					for (unsigned int y = minYPos + (ySeperation / 2); y < maxYPos; y += ySeperation) {
 						for (unsigned int x = minXPos + (xSeperation / 2); x < maxXPos; x += xSeperation) {
-							BYTE *pixelColour_ = bufPixels + 4 * x + y * 4 * width_;
+							BYTE *pixelColour_ = bufPixels_ + 4 * x + y * 4 * width_;
 
 							rgbPixel_ = RGBColour(pixelColour_[2] / 255.0f, pixelColour_[1] / 255.0f, pixelColour_[0] / 255.0f);
 							processor_->processPixel(colour, rgbPixel_);
@@ -296,6 +296,17 @@ void Screen::acquireScreenRegion(HSVColour &colour, ScreenRegion &region)
 	acquireScreenRegion(rgb, region);
 
 	rgb.computeHSV(colour.h, colour.s, colour.v);
+}
+
+void Screen::takeAeroScreen(void) {
+	tookScreen_ = false;
+	if ((!aeroPresent_ || aeroDisabled_)) {
+	} else {
+		// get the actual bitmap buffer
+		if (0 != GetDIBits(screen_, bitmap_, 0, bitmapInfo_.bmiHeader.biHeight, (LPVOID)bufPixels_, &bitmapInfo_, DIB_RGB_COLORS)) {
+			tookScreen_ = true;
+		}
+	}
 }
 
 bool Screen::desktopCompositionPresent(void)
@@ -395,8 +406,9 @@ void Screen::reinitialiseScreen(void)
 
 	//aero support
 	DeleteObject(bitmap_);
-	if (bufPixels)
-		delete[] bufPixels;
+	if (bufPixels_)
+		delete[] bufPixels_;
+	bufPixels_ = NULL;
 	initDIBits();
 }
 
@@ -427,7 +439,7 @@ void Screen::initDIBits(void) {
 	}
 
 	// create the bitmap buffer
-	bufPixels = new BYTE[bitmapInfo_.bmiHeader.biSizeImage];
+	bufPixels_ = new BYTE[bitmapInfo_.bmiHeader.biSizeImage];
 
 	// Better do this here - the original bitmap might have BI_BITFILEDS, which makes it
 	// necessary to read the color table - you might not want this.
