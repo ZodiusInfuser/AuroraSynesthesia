@@ -41,7 +41,7 @@ Icon::Icon(HINSTANCE hInstance, HWND hWnd, LPWSTR tip)
 	iconData_.uID = 1;    
 	iconData_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;  
 	iconData_.uCallbackMessage = TRAY_NOTIFY;
-	iconData_.hIcon = iconImages_[0];
+	iconData_.hIcon = iconImages_[NUM_ICONS - 1];
 	wcscpy_s(iconData_.szTip, tip);
 
 	timePassed_ = 0;
@@ -58,6 +58,15 @@ Icon::~Icon(void)
 
 void Icon::representColour(RGBColour colour, unsigned int updateTime)
 {
+	if (!responceToColor_) {
+		return;
+	}
+
+	if (updateTime <= 0) {
+		updateTime = 1;
+	}
+	updateTime = 1000 / updateTime;
+
 	timePassed_ += updateTime;
 
 	if(timePassed_ >= ICON_DURATION)
@@ -88,4 +97,12 @@ void Icon::changeToolTip(LPWSTR tip)
 	wcscpy_s(iconData_.szTip, tip);
 
 	Shell_NotifyIcon(NIM_MODIFY, &iconData_);
+}
+
+void Icon::responceToColor(bool responce) {
+	responceToColor_ = responce;
+	if (!responceToColor_) {
+		iconData_.hIcon = iconImages_[NUM_ICONS - 1];
+		Shell_NotifyIcon(NIM_MODIFY, &iconData_);
+	}
 }

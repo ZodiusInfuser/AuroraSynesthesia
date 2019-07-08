@@ -3,7 +3,7 @@
 
 System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, IlluminationPreset illumination, VisualisationPreset visualisation,
 	ModeResponceSetting responce, ScreenSamplingSetting sampling, WhiteBalanceSetting whiteBalance,
-	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, const WCHAR *inipath)
+	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, IconUpdateSetting iconUpdate, const WCHAR *inipath)
 {
 	lstrcpy(iniPath, inipath);
 
@@ -27,6 +27,8 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 	lightBrightnessSetting_ = DEFAULT_LIGHT_BRIGHTNESS_SETTING;
 	lightSensitivitySetting_ = DEFAULT_LIGHT_SENSITIVITY_SETTING;
 	lightingArrangementSetting_ = DEFAULT_LIGHTING_ARRANGEMENT_SETTING;
+
+	iconUpdateSetting_ = DEFAULT_ICON_UPDATE_SETTING;
 
 	//
 	processors_ = new Screen::PixelProcessor*[NUM_SCREEN_MODES];
@@ -88,7 +90,9 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 		changeLightBrightnessSetting(brightness);
 		changeLightSensitivitySetting(sensitivity);
 		changeLightingArrangementSetting(arrangement);
+		changeIconUpdateSetting(iconUpdate);
 	}
+	saveSettings();
 }
 
 System::~System(void)
@@ -383,6 +387,14 @@ void System::changeModeResponceSetting(ModeResponceSetting setting)
 			}
 			updateTime_ = HIGH_UPDATE_TIME;
 			break;
+		case REALTIME_RESPONCE:
+			spectrum_->modifySpectrumResponce(16.0f);
+			if(!amBXDisabled_)
+			{
+				amBX_->changeFadeTime(REALTIME_UPDATE_TIME);
+			}
+			updateTime_ = REALTIME_UPDATE_TIME;
+			break;
 	}
 
 	modeResponceSetting_ = setting;	
@@ -551,6 +563,26 @@ void System::changeLightingArrangementSetting(LightingArrangementSetting setting
 	lightingArrangementSetting_ = setting;			
 }
 
+void System::changeIconUpdateSetting(IconUpdateSetting setting)
+{
+	switch(setting)
+	{
+		case ICON_UPDATE_DISABLED:
+			icon_->responceToColor(false);
+			break;
+		case ICON_UPDATE_ENABLED:
+			icon_->responceToColor(true);
+			break;
+	}
+
+	iconUpdateSetting_ = setting;
+}
+
+IconUpdateSetting System::currentIconUpdateSetting(void)
+{
+	return iconUpdateSetting_;
+}
+
 LightingState System::currentLightingState(void)
 {
 	return lightingState_;
@@ -713,7 +745,9 @@ void System::execute(void)
 				iconColour = RGBColour();
 			}
 
-			icon_->representColour(iconColour, updateTime_);
+			if (iconUpdateSetting_ == ICON_UPDATE_ENABLED) {
+				icon_->representColour(iconColour, updateTime_);
+			}
 
 			endTime = GetTickCount();
 
@@ -731,202 +765,207 @@ bool System::saveSettings(void) {
 	if (!iniPath[0]) {
 		return false;
 	}
-	CSimpleIniA ini(false, true, true);
+	CSimpleIni ini(false, true, true);
 
 //Modes
-	const char *value;
+	const WCHAR *value;
 	switch (screenMode_) {
 	case AVERAGE_SCREEN:
-		value = "Average";
+		value = L"Average";
 		break;
 	case ILLUMINATE_SCREEN:
-		value = "Illuminate";
+		value = L"Illuminate";
 		break;
 	case DISABLE_SCREEN:
-		value = "Disable";
+		value = L"Disable";
 		break;
 	default:
 	case VIBRANT_SCREEN:
-		value = "Vibrant";
+		value = L"Vibrant";
 		break;
 	}
-	ini.SetValue("Modes", "Aurora", value);
+	ini.SetValue(L"Modes", L"Aurora", value);
 	switch (spectrumMode_) {
 	case AMBIENT_SPECTRUM:
-		value = "Ambient";
+		value = L"Ambient";
 		break;
 	case IMMERSIVE_SPECTRUM:
-		value = "Immersive";
+		value = L"Immersive";
 		break;
 	case DISABLE_SPECTRUM:
-		value = "Disable";
+		value = L"Disable";
 		break;
 	default:
 	case REACTIVE_SPECTRUM:
-		value = "Reactive";
+		value = L"Reactive";
 		break;
 	}
-	ini.SetValue("Modes", "Synesthesia", value);
+	ini.SetValue(L"Modes", L"Synesthesia", value);
 //Presets
 	switch (illuminationPreset_) {
 	case SPECTRUM_ILLUMINATION:
-		value = "Spectrum";
+		value = L"Spectrum";
 		break;
 	case CANDLE_ILLUMINATION:
-		value = "Candle";
+		value = L"Candle";
 		break;
 	case RELAX_ILLUMINATION:
-		value = "Relax";
+		value = L"Relax";
 		break;
 	default:
 	case ORIGINAL_ILLUMINATION:
-		value = "Original";
+		value = L"Original";
 		break;
 	}
-	ini.SetValue("Presets", "Illumination", value);
+	ini.SetValue(L"Presets", L"Illumination", value);
 	switch (visualisationPreset_) {
 	case LIQUID_VISUALISATION:
-		value = "Liquid";
+		value = L"Liquid";
 		break;
 	case ENERGY_VISUALISATION:
-		value = "Energy";
+		value = L"Energy";
 		break;
 	default:
 	case NATURAL_VISUALISATION:
-		value = "Natural";
+		value = L"Natural";
 		break;
 	}
-	ini.SetValue("Presets", "Visualisation", value);
+	ini.SetValue(L"Presets", L"Visualisation", value);
 //Settings
 	switch (modeResponceSetting_) {
 	case LOW_RESPONCE:
-		value = "Low";
+		value = L"Low";
 		break;
 	case HIGH_RESPONCE:
-		value = "High";
+		value = L"High";
+		break;
+	case REALTIME_RESPONCE:
+		value = L"Realtime";
 		break;
 	default:
 	case STANDARD_RESPONCE:
-		value = "Standard";
+		value = L"Standard";
 		break;
 	}
-	ini.SetValue("Settings", "ModeResponse", value);
+	ini.SetValue(L"Settings", L"ModeResponse", value);
 	switch (screenSamplingSetting_) {
 	case LOW_SAMPLING:
-		value = "Low";
+		value = L"Low";
 		break;
 	case HIGH_SAMPLING:
-		value = "High";
+		value = L"High";
 		break;
 	default:
 	case STANDARD_SAMPLING:
-		value = "Standard";
+		value = L"Standard";
 		break;
 	}
-	ini.SetValue("Settings", "ScreenSampling", value);
+	ini.SetValue(L"Settings", L"ScreenSampling", value);
 	switch (lightSensitivitySetting_) {
 	case PFIVE_SENSITIVITY:
-		value = "0.5";
+		value = L"0.5";
 		break;
 	case ONE_SENSITIVITY:
-		value = "1";
+		value = L"1";
 		break;
 	case TWO_SENSITIVITY:
-		value = "2";
+		value = L"2";
 		break;
 	case FOUR_SENSITIVITY:
-		value = "4";
+		value = L"4";
 		break;
 	case EIGHT_SENSITIVITY:
-		value = "8";
+		value = L"8";
 		break;
 	case SIXTEEN_SENSITIVITY:
-		value = "16";
+		value = L"16";
 		break;
 	case THIRTYTWO_SENSITIVITY:
-		value = "32";
+		value = L"32";
 		break;
 	case SIXTYFOUR_SENSITIVITY:
-		value = "64";
+		value = L"64";
 		break;
 	case ONETWOEIGHT_SENSITIVITY:
-		value = "128";
+		value = L"128";
 		break;
 	case TWOFIVESIX_SENSITIVITY:
-		value = "256";
+		value = L"256";
 		break;
 	default:
 	case ADAPTIVE_SENSITIVITY:
-		value = "Delta";
+		value = L"Delta";
 		break;
 	}
-	ini.SetValue("Settings", "SoundSensitivity", value);
+	ini.SetValue(L"Settings", L"SoundSensitivity", value);
 	switch (whiteBalanceSetting_) {
 	case OFF_WHITE_BALANCE:
-		value = "0";
+		value = L"0";
 		break;
 	case ONE_WHITE_BALANCE:
-		value = "1";
+		value = L"1";
 		break;
 	case THREE_WHITE_BALANCE:
-		value = "3";
+		value = L"3";
 		break;
 	case FOUR_WHITE_BALANCE:
-		value = "4";
+		value = L"4";
 		break;
 	case FIVE_WHITE_BALANCE:
-		value = "5";
+		value = L"5";
 		break;
 	default:
 	case TWO_WHITE_BALANCE:
-		value = "2";
+		value = L"2";
 		break;
 	}
-	ini.SetValue("Settings", "WhiteBalance", value);
+	ini.SetValue(L"Settings", L"WhiteBalance", value);
 	switch (lightBrightnessSetting_) {
 	case TEN_BRIGHTNESS:
-		value = "10";
+		value = L"10";
 		break;
 	case TWENTY_BRIGHTNESS:
-		value = "20";
+		value = L"20";
 		break;
 	case THIRTY_BRIGHTNESS:
-		value = "30";
+		value = L"30";
 		break;
 	case FOURTY_BRIGHTNESS:
-		value = "40";
+		value = L"40";
 		break;
 	case FIFTY_BRIGHTNESS:
-		value = "50";
+		value = L"50";
 		break;
 	case SIXTY_BRIGHTNESS:
-		value = "60";
+		value = L"60";
 		break;
 	case SEVENTY_BRIGHTNESS:
-		value = "70";
+		value = L"70";
 		break;
 	case EIGHTY_BRIGHTNESS:
-		value = "80";
+		value = L"80";
 		break;
 	case NINETY_BRIGHTNESS:
-		value = "90";
+		value = L"90";
 		break;
 	default:
 	case ONEHUNDRED_BRIGHTNESS:
-		value = "100";
+		value = L"100";
 		break;
 	}
-	ini.SetValue("Settings", "LightBrightness", value);
-	switch (lightingArrangementSetting_){
+	ini.SetValue(L"Settings", L"LightBrightness", value);
+	switch (lightingArrangementSetting_) {
 	case SURROUND_ARRANGEMENT:
-		value = "Surround";
+		value = L"Surround";
 		break;
 	default:
 	case STEREO_ARRANGEMENT:
-		value = "Stereo";
+		value = L"Stereo";
 		break;
 	}
-	ini.SetValue("Settings", "LightingArrangement", value);
+	ini.SetValue(L"Settings", L"LightingArrangement", value);
+	bool bValue = iconUpdateSetting_ == ICON_UPDATE_ENABLED;
+	ini.SetBoolValue(L"Settings", L"UpdateIcon", bValue);
 
 	SI_Error rc = ini.SaveFile(iniPath, false);
 	if (rc < 0) {

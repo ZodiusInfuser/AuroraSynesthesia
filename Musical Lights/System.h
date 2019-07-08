@@ -27,6 +27,9 @@
 #define DEFAULT_LIGHT_SENSITIVITY_SETTING		ADAPTIVE_SENSITIVITY
 #define DEFAULT_LIGHTING_ARRANGEMENT_SETTING	STEREO_ARRANGEMENT
 
+#define DEFAULT_ICON_UPDATE_SETTING				ICON_UPDATE_ENABLED
+
+#define REALTIME_UPDATE_TIME		0
 #define HIGH_UPDATE_TIME			50
 #define STANDARD_UPDATE_TIME		100
 #define LOW_UPDATE_TIME				200
@@ -89,7 +92,8 @@ enum ModeResponceSetting
 	LOW_RESPONCE				= 0,
 	STANDARD_RESPONCE			= 1,
 	HIGH_RESPONCE				= 2,
-	NUM_RESPONCE_SETTINGS		= 3
+	REALTIME_RESPONCE			= 3,
+	NUM_RESPONCE_SETTINGS		= 4
 };
 
 enum ScreenSamplingSetting
@@ -149,6 +153,13 @@ enum LightingArrangementSetting
 	NUM_ARRANGEMENT_SETTINGS	= 2
 };
 
+enum IconUpdateSetting
+{
+	ICON_UPDATE_DISABLED = 0,
+	ICON_UPDATE_ENABLED = 1,
+	NUM_ICON_UPDATE_STATES = 2
+};
+
 
 
 class System
@@ -156,7 +167,7 @@ class System
 public:
 	System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, IlluminationPreset illumination, VisualisationPreset visualisation,
 		ModeResponceSetting responce, ScreenSamplingSetting sampling, WhiteBalanceSetting whiteBalance,
-		LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, const WCHAR *inipath);
+		LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, IconUpdateSetting iconUpdate, const WCHAR *inipath);
 	~System(void);
 
 public:
@@ -167,6 +178,7 @@ public:
 	bool usingSynesthesia(void);
 
 
+	void changeIconUpdateSetting(IconUpdateSetting state);
 	void changeLightingState(LightingState state);
 
 	void changeScreenMode(ScreenMode mode);
@@ -183,6 +195,7 @@ public:
 	void changeLightingArrangementSetting(LightingArrangementSetting setting);
 
 
+	IconUpdateSetting currentIconUpdateSetting(void);
 	LightingState currentLightingState(void);
 
 	ScreenMode currentScreenMode(void);
@@ -210,6 +223,7 @@ private:
 	bool synesthesiaInitialised_;
 	bool amBXDisabled_;
 
+	IconUpdateSetting	iconUpdateSetting_;
 	LightingState lightingState_;
 
 	ScreenMode screenMode_;
