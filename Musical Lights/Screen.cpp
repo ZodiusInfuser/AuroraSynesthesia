@@ -121,10 +121,12 @@ Screen::~Screen(void)
 	delete colourPeriods_;
 
 	ReleaseDC(NULL, screen_);
-	DeleteObject(bitmap_);
-	if (bufPixels_)
-		delete[] bufPixels_;
-	bufPixels_ = NULL;
+	//aero support
+	if (captureDC_) {
+		SelectObject(captureDC_, oldBitmap_);
+		DeleteDC(captureDC_);
+		DeleteObject(bitmap_);
+	}
 }
 
 void Screen::enableIlluminateEmulation(void)
@@ -302,8 +304,7 @@ void Screen::takeAeroScreen(void) {
 	tookScreen_ = false;
 	if ((!aeroPresent_ || aeroDisabled_)) {
 	} else {
-		// get the actual bitmap buffer
-		if (0 != GetDIBits(screen_, bitmap_, 0, bitmapInfo_.bmiHeader.biHeight, (LPVOID)bufPixels_, &bitmapInfo_, DIB_RGB_COLORS)) {
+		if (BitBlt(captureDC_, 0, 0, width_, height_, screen_, 0, 0, SRCCOPY)) {
 			tookScreen_ = true;
 		}
 	}
@@ -405,10 +406,11 @@ void Screen::reinitialiseScreen(void)
 	height_ = GetDeviceCaps(screen_, VERTRES);
 
 	//aero support
-	DeleteObject(bitmap_);
-	if (bufPixels_)
-		delete[] bufPixels_;
-	bufPixels_ = NULL;
+	if (captureDC_) {
+		SelectObject(captureDC_, oldBitmap_);
+		DeleteDC(captureDC_);
+		DeleteObject(bitmap_);
+	}
 	initDIBits();
 }
 
@@ -420,31 +422,19 @@ void Screen::modifySampleSize(float factor)
 
 //aero support
 void Screen::initDIBits(void) {
-	// Create compatible DC, create a compatible bitmap and copy the screen using BitBlt()
-	HDC hCaptureDC = CreateCompatibleDC(screen_);
-	bitmap_ = CreateCompatibleBitmap(screen_, width_, height_);
-	HGDIOBJ hOld = SelectObject(hCaptureDC, bitmap_);
-	BOOL bOK = BitBlt(hCaptureDC, 0, 0, width_, height_, screen_, 0, 0, SRCCOPY | CAPTUREBLT);
-
-	SelectObject(hCaptureDC, hOld); // always select the previously selected object once done
-	DeleteDC(hCaptureDC);
-
 	bitmapInfo_ = { 0 };
-	bitmapInfo_.bmiHeader.biSize = sizeof(bitmapInfo_.bmiHeader);
+	BITMAPINFOHEADER *bih = &bitmapInfo_.bmiHeader;
+	bih->biSize = sizeof(bitmapInfo_.bmiHeader);
+	bih->biBitCount = 32;
+	bih->biWidth = width_;
+	bih->biHeight = height_;
+	bih->biPlanes = 1;
+	bih->biCompression = BI_RGB;
 
-	// Get the BITMAPINFO structure from the bitmap
-	if (0 == GetDIBits(screen_, bitmap_, 0, 0, NULL, &bitmapInfo_, DIB_RGB_COLORS)) {
-		aeroPresent_ = false;
-		return;
-	}
-
-	// create the bitmap buffer
-	bufPixels_ = new BYTE[bitmapInfo_.bmiHeader.biSizeImage];
-
-	// Better do this here - the original bitmap might have BI_BITFILEDS, which makes it
-	// necessary to read the color table - you might not want this.
-	bitmapInfo_.bmiHeader.biCompression = BI_RGB;
-
+	// OBS implementation
+	captureDC_ = CreateCompatibleDC(screen_);
+	bitmap_ = CreateDIBSection(captureDC_, &bitmapInfo_, DIB_RGB_COLORS, (void**)&bufPixels_, NULL, 0);
+	oldBitmap_ = SelectObject(captureDC_, bitmap_);
 }
 
 

@@ -15,6 +15,7 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 	lightingState_ = DEFAULT_LIGHTING_STATE;
 
 	screenMode_ = DEFAULT_SCREEN_MODE;
+	lastScreenMode_ = DEFAULT_SCREEN_MODE;
 	spectrumMode_ = DEFAULT_SPECTRUM_MODE;
 
 	illuminationPreset_ = DEFAULT_ILLUMINATION_PRESET;
@@ -177,8 +178,14 @@ void System::changeScreenMode(ScreenMode mode)
 
 	if(!amBXDisabled_)
 	{
-		switch(mode)
+		if (mode == lastScreenMode_)
 		{
+			changeSuccessful = true;
+		}
+		else
+		{
+			switch (mode)
+			{
 			case AVERAGE_SCREEN:
 				changeSuccessful = screen_->changePixelProcessor(processors_[AVERAGE_SCREEN]);
 				screen_->disableIlluminateEmulation();
@@ -197,6 +204,7 @@ void System::changeScreenMode(ScreenMode mode)
 				changeSuccessful = screen_->changePixelProcessor(processors_[DISABLE_SCREEN]);
 				screen_->disableIlluminateEmulation();
 				break;
+			}
 		}
 	}
 	else
@@ -213,6 +221,7 @@ void System::changeScreenMode(ScreenMode mode)
 		screenMode_ = DISABLE_SCREEN;
 		screen_->disableIlluminateEmulation();
 	}
+	lastScreenMode_ = screenMode_;
 }
 
 void System::changeSpectrumMode(SpectrumMode mode)

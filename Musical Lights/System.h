@@ -213,6 +213,7 @@ private:
 	LightingState lightingState_;
 
 	ScreenMode screenMode_;
+	ScreenMode lastScreenMode_;
 	SpectrumMode spectrumMode_;
 
 	IlluminationPreset illuminationPreset_;

@@ -106,7 +106,9 @@ private:
 	COLORREF pixelColour_;
 	RGBColour rgbPixel_;
 	//aero support
+	HDC captureDC_;
 	HBITMAP bitmap_;
+	HGDIOBJ oldBitmap_;
 	BITMAPINFO bitmapInfo_;
 	BYTE *bufPixels_;
 	bool tookScreen_;
