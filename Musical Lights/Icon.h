@@ -28,10 +28,12 @@ public:
 	void representColour(RGBColour colour, unsigned int updateTime);
 	void representColour(HSVColour colour, unsigned int updateTime);
 	void changeToolTip(LPWSTR tip);
+	void responceToColor(bool responce);
 
 private:
 	NOTIFYICONDATA iconData_;
 	HICON* iconImages_;	
 
 	unsigned int timePassed_;
+	bool responceToColor_;
 };

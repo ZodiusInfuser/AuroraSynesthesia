@@ -3,8 +3,10 @@
 
 System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, IlluminationPreset illumination, VisualisationPreset visualisation,
 	ModeResponceSetting responce, ScreenSamplingSetting sampling, WhiteBalanceSetting whiteBalance,
-	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement)
+	LightBrightnessSetting brightness, LightSensitivitySetting sensitivity, LightingArrangementSetting arrangement, IconUpdateSetting iconUpdate, const WCHAR *inipath)
 {
+	lstrcpy(iniPath, inipath);
+
 	icon_ = icon;
 
 	updateTime_ = DEFAULT_UPDATE_TIME;
@@ -13,6 +15,7 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 	lightingState_ = DEFAULT_LIGHTING_STATE;
 
 	screenMode_ = DEFAULT_SCREEN_MODE;
+	lastScreenMode_ = DEFAULT_SCREEN_MODE;
 	spectrumMode_ = DEFAULT_SPECTRUM_MODE;
 
 	illuminationPreset_ = DEFAULT_ILLUMINATION_PRESET;
@@ -24,6 +27,8 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 	lightBrightnessSetting_ = DEFAULT_LIGHT_BRIGHTNESS_SETTING;
 	lightSensitivitySetting_ = DEFAULT_LIGHT_SENSITIVITY_SETTING;
 	lightingArrangementSetting_ = DEFAULT_LIGHTING_ARRANGEMENT_SETTING;
+
+	iconUpdateSetting_ = DEFAULT_ICON_UPDATE_SETTING;
 
 	//
 	processors_ = new Screen::PixelProcessor*[NUM_SCREEN_MODES];
@@ -85,7 +90,9 @@ System::System(Icon* icon, ScreenMode screen, SpectrumMode spectrum, Illuminatio
 		changeLightBrightnessSetting(brightness);
 		changeLightSensitivitySetting(sensitivity);
 		changeLightingArrangementSetting(arrangement);
+		changeIconUpdateSetting(iconUpdate);
 	}
+	saveSettings();
 }
 
 System::~System(void)
@@ -104,12 +111,12 @@ System::~System(void)
 
 void System::reinitialise(void)
 {
-	if(synesthesiaInitialised_)
-	{
+	//worked fine after sleep mode on win 7 sp1 - disabling for now
+/*	if(synesthesiaInitialised_) {
 		//Odd issue takes place after restart preventing FMOD and Synesthesia from working, but neither produce any errors.
 		changeSpectrumMode(DISABLE_SPECTRUM);
 		synesthesiaInitialised_ = false;
-	}
+	}*/
 }
 
 bool System::successfullyInitialised(void)
@@ -175,8 +182,14 @@ void System::changeScreenMode(ScreenMode mode)
 
 	if(!amBXDisabled_)
 	{
-		switch(mode)
+		if (mode == lastScreenMode_)
 		{
+			changeSuccessful = true;
+		}
+		else
+		{
+			switch (mode)
+			{
 			case AVERAGE_SCREEN:
 				changeSuccessful = screen_->changePixelProcessor(processors_[AVERAGE_SCREEN]);
 				screen_->disableIlluminateEmulation();
@@ -195,6 +208,7 @@ void System::changeScreenMode(ScreenMode mode)
 				changeSuccessful = screen_->changePixelProcessor(processors_[DISABLE_SCREEN]);
 				screen_->disableIlluminateEmulation();
 				break;
+			}
 		}
 	}
 	else
@@ -211,6 +225,7 @@ void System::changeScreenMode(ScreenMode mode)
 		screenMode_ = DISABLE_SCREEN;
 		screen_->disableIlluminateEmulation();
 	}
+	lastScreenMode_ = screenMode_;
 }
 
 void System::changeSpectrumMode(SpectrumMode mode)
@@ -371,6 +386,14 @@ void System::changeModeResponceSetting(ModeResponceSetting setting)
 				amBX_->changeFadeTime(HIGH_UPDATE_TIME);
 			}
 			updateTime_ = HIGH_UPDATE_TIME;
+			break;
+		case REALTIME_RESPONCE:
+			spectrum_->modifySpectrumResponce(16.0f);
+			if(!amBXDisabled_)
+			{
+				amBX_->changeFadeTime(REALTIME_UPDATE_TIME);
+			}
+			updateTime_ = REALTIME_UPDATE_TIME;
 			break;
 	}
 
@@ -540,6 +563,26 @@ void System::changeLightingArrangementSetting(LightingArrangementSetting setting
 	lightingArrangementSetting_ = setting;			
 }
 
+void System::changeIconUpdateSetting(IconUpdateSetting setting)
+{
+	switch(setting)
+	{
+		case ICON_UPDATE_DISABLED:
+			icon_->responceToColor(false);
+			break;
+		case ICON_UPDATE_ENABLED:
+			icon_->responceToColor(true);
+			break;
+	}
+
+	iconUpdateSetting_ = setting;
+}
+
+IconUpdateSetting System::currentIconUpdateSetting(void)
+{
+	return iconUpdateSetting_;
+}
+
 LightingState System::currentLightingState(void)
 {
 	return lightingState_;
@@ -653,21 +696,20 @@ void System::execute(void)
 
 					screen_->advanceIlluminateEmulation(updateTime_);
 
-					do
-					{
+					do {
 						//Reinitialise the screen capturer in the event that the screen
 						//has changed and it is no longer able to get pixel data from it.
-						if(screen_->invalidScreen())
-						{
+						if(screen_->invalidScreen()) {
 							screen_->reinitialiseScreen();
 						}
 
+						screen_->takeAeroScreen();
 						screen_->acquireScreenRegion(centre, ScreenRegion(0.333f, 0.667f, 0.0f, 1.0f));
 						screen_->acquireScreenRegion(left, ScreenRegion(0.0f, 0.333f, 0.0f, 1.0f));
 						screen_->acquireScreenRegion(right, ScreenRegion(0.667f, 1.0f, 0.0f, 1.0f));
 
 						screenAttempts++;
-					}while(screen_->invalidScreen() && (screenAttempts < MAX_SCREEN_ATTEMPTS));
+					} while (screen_->invalidScreen() && (screenAttempts < MAX_SCREEN_ATTEMPTS));
 
 					amBX_->setAmbient(left, right, centre);
 				}
@@ -703,7 +745,9 @@ void System::execute(void)
 				iconColour = RGBColour();
 			}
 
-			icon_->representColour(iconColour, updateTime_);
+			if (iconUpdateSetting_ == ICON_UPDATE_ENABLED) {
+				icon_->representColour(iconColour, updateTime_);
+			}
 
 			endTime = GetTickCount();
 
@@ -715,4 +759,217 @@ void System::execute(void)
 			}
 		}
 	}
+}
+
+bool System::saveSettings(void) {
+	if (!iniPath[0]) {
+		return false;
+	}
+	CSimpleIni ini(false, true, true);
+
+//Modes
+	const WCHAR *value;
+	switch (screenMode_) {
+	case AVERAGE_SCREEN:
+		value = L"Average";
+		break;
+	case ILLUMINATE_SCREEN:
+		value = L"Illuminate";
+		break;
+	case DISABLE_SCREEN:
+		value = L"Disable";
+		break;
+	default:
+	case VIBRANT_SCREEN:
+		value = L"Vibrant";
+		break;
+	}
+	ini.SetValue(L"Modes", L"Aurora", value);
+	switch (spectrumMode_) {
+	case AMBIENT_SPECTRUM:
+		value = L"Ambient";
+		break;
+	case IMMERSIVE_SPECTRUM:
+		value = L"Immersive";
+		break;
+	case DISABLE_SPECTRUM:
+		value = L"Disable";
+		break;
+	default:
+	case REACTIVE_SPECTRUM:
+		value = L"Reactive";
+		break;
+	}
+	ini.SetValue(L"Modes", L"Synesthesia", value);
+//Presets
+	switch (illuminationPreset_) {
+	case SPECTRUM_ILLUMINATION:
+		value = L"Spectrum";
+		break;
+	case CANDLE_ILLUMINATION:
+		value = L"Candle";
+		break;
+	case RELAX_ILLUMINATION:
+		value = L"Relax";
+		break;
+	default:
+	case ORIGINAL_ILLUMINATION:
+		value = L"Original";
+		break;
+	}
+	ini.SetValue(L"Presets", L"Illumination", value);
+	switch (visualisationPreset_) {
+	case LIQUID_VISUALISATION:
+		value = L"Liquid";
+		break;
+	case ENERGY_VISUALISATION:
+		value = L"Energy";
+		break;
+	default:
+	case NATURAL_VISUALISATION:
+		value = L"Natural";
+		break;
+	}
+	ini.SetValue(L"Presets", L"Visualisation", value);
+//Settings
+	switch (modeResponceSetting_) {
+	case LOW_RESPONCE:
+		value = L"Low";
+		break;
+	case HIGH_RESPONCE:
+		value = L"High";
+		break;
+	case REALTIME_RESPONCE:
+		value = L"Realtime";
+		break;
+	default:
+	case STANDARD_RESPONCE:
+		value = L"Standard";
+		break;
+	}
+	ini.SetValue(L"Settings", L"ModeResponse", value);
+	switch (screenSamplingSetting_) {
+	case LOW_SAMPLING:
+		value = L"Low";
+		break;
+	case HIGH_SAMPLING:
+		value = L"High";
+		break;
+	default:
+	case STANDARD_SAMPLING:
+		value = L"Standard";
+		break;
+	}
+	ini.SetValue(L"Settings", L"ScreenSampling", value);
+	switch (lightSensitivitySetting_) {
+	case PFIVE_SENSITIVITY:
+		value = L"0.5";
+		break;
+	case ONE_SENSITIVITY:
+		value = L"1";
+		break;
+	case TWO_SENSITIVITY:
+		value = L"2";
+		break;
+	case FOUR_SENSITIVITY:
+		value = L"4";
+		break;
+	case EIGHT_SENSITIVITY:
+		value = L"8";
+		break;
+	case SIXTEEN_SENSITIVITY:
+		value = L"16";
+		break;
+	case THIRTYTWO_SENSITIVITY:
+		value = L"32";
+		break;
+	case SIXTYFOUR_SENSITIVITY:
+		value = L"64";
+		break;
+	case ONETWOEIGHT_SENSITIVITY:
+		value = L"128";
+		break;
+	case TWOFIVESIX_SENSITIVITY:
+		value = L"256";
+		break;
+	default:
+	case ADAPTIVE_SENSITIVITY:
+		value = L"Delta";
+		break;
+	}
+	ini.SetValue(L"Settings", L"SoundSensitivity", value);
+	switch (whiteBalanceSetting_) {
+	case OFF_WHITE_BALANCE:
+		value = L"0";
+		break;
+	case ONE_WHITE_BALANCE:
+		value = L"1";
+		break;
+	case THREE_WHITE_BALANCE:
+		value = L"3";
+		break;
+	case FOUR_WHITE_BALANCE:
+		value = L"4";
+		break;
+	case FIVE_WHITE_BALANCE:
+		value = L"5";
+		break;
+	default:
+	case TWO_WHITE_BALANCE:
+		value = L"2";
+		break;
+	}
+	ini.SetValue(L"Settings", L"WhiteBalance", value);
+	switch (lightBrightnessSetting_) {
+	case TEN_BRIGHTNESS:
+		value = L"10";
+		break;
+	case TWENTY_BRIGHTNESS:
+		value = L"20";
+		break;
+	case THIRTY_BRIGHTNESS:
+		value = L"30";
+		break;
+	case FOURTY_BRIGHTNESS:
+		value = L"40";
+		break;
+	case FIFTY_BRIGHTNESS:
+		value = L"50";
+		break;
+	case SIXTY_BRIGHTNESS:
+		value = L"60";
+		break;
+	case SEVENTY_BRIGHTNESS:
+		value = L"70";
+		break;
+	case EIGHTY_BRIGHTNESS:
+		value = L"80";
+		break;
+	case NINETY_BRIGHTNESS:
+		value = L"90";
+		break;
+	default:
+	case ONEHUNDRED_BRIGHTNESS:
+		value = L"100";
+		break;
+	}
+	ini.SetValue(L"Settings", L"LightBrightness", value);
+	switch (lightingArrangementSetting_) {
+	case SURROUND_ARRANGEMENT:
+		value = L"Surround";
+		break;
+	default:
+	case STEREO_ARRANGEMENT:
+		value = L"Stereo";
+		break;
+	}
+	ini.SetValue(L"Settings", L"LightingArrangement", value);
+	bool bValue = iconUpdateSetting_ == ICON_UPDATE_ENABLED;
+	ini.SetBoolValue(L"Settings", L"UpdateIcon", bValue);
+
+	SI_Error rc = ini.SaveFile(iniPath, false);
+	if (rc < 0) {
+		return false;
+	}
+	return true;
 }

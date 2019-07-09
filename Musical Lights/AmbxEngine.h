@@ -2,8 +2,8 @@
 
 //INCLUDES
 
-#include "IamBX.h"
-#include "IamBX_Light.h"
+#include <IamBX.h>
+#include <IamBX_Light.h>
 
 #include "AmbxUtil.h"
 #include "Common.h"

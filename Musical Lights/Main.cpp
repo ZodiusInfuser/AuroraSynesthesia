@@ -3,6 +3,7 @@
 #include <windowsx.h>
 #include <time.h>
 #include <dwmapi.h>
+#include <Shlobj.h>
 
 #include "math.h"
 
@@ -63,6 +64,162 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 } 
 
 
+void parseIni(CSimpleIni &ini, ScreenMode *screen, SpectrumMode *spectrum, IlluminationPreset *illumination, VisualisationPreset *visualisation,
+	ModeResponceSetting *responce, ScreenSamplingSetting *sampling, WhiteBalanceSetting *whitebalance,
+	LightBrightnessSetting *brightness, LightSensitivitySetting *sensitivity, LightingArrangementSetting *arrangement, IconUpdateSetting *iconUpdate) {
+//Modes
+	const WCHAR *auroraMode = ini.GetValue(L"Modes", L"Aurora", NULL);
+	if (auroraMode) {
+		if (!_wcsicmp(auroraMode, L"average")) {
+			*screen = AVERAGE_SCREEN;
+		} else if (!_wcsicmp(auroraMode, L"illuminate")) {
+			*screen = ILLUMINATE_SCREEN;
+		} else if (!_wcsicmp(auroraMode, L"disable")) {
+			*screen = DISABLE_SCREEN;
+		} else {
+			*screen = VIBRANT_SCREEN;
+		}
+	}
+	const WCHAR *synesthesiaMode = ini.GetValue(L"Modes", L"Synesthesia", NULL);
+	if (synesthesiaMode) {
+		if (!_wcsicmp(synesthesiaMode, L"ambient")) {
+			*spectrum = AMBIENT_SPECTRUM;
+		} else if (!_wcsicmp(synesthesiaMode, L"immersive")) {
+			*spectrum = IMMERSIVE_SPECTRUM;
+		} else if (!_wcsicmp(synesthesiaMode, L"disable")) {
+			*spectrum = DISABLE_SPECTRUM;
+		} else {
+			*spectrum = REACTIVE_SPECTRUM;
+		}
+	}
+//Presets
+	const WCHAR *illuminationPreset = ini.GetValue(L"Presets", L"Illumination", NULL);
+	if (illuminationPreset) {
+		if (!_wcsicmp(illuminationPreset, L"spectrum")) {
+			*illumination = SPECTRUM_ILLUMINATION;
+		} else if (!_wcsicmp(illuminationPreset, L"candle")) {
+			*illumination = CANDLE_ILLUMINATION;
+		} else if (!_wcsicmp(illuminationPreset, L"relax")) {
+			*illumination = RELAX_ILLUMINATION;
+		} else {
+			*illumination = ORIGINAL_ILLUMINATION;
+		}
+	}
+	const WCHAR *visualisationPreset = ini.GetValue(L"Presets", L"Visualisation", NULL);
+	if (visualisationPreset) {
+		if (!_wcsicmp(visualisationPreset, L"liquid")) {
+			*visualisation = LIQUID_VISUALISATION;
+		} else if (!_wcsicmp(visualisationPreset, L"energy")) {
+			*visualisation = ENERGY_VISUALISATION;
+		} else {
+			*visualisation = NATURAL_VISUALISATION;
+		}
+	}
+//Settings
+	const WCHAR *modeResponse = ini.GetValue(L"Settings", L"ModeResponse", NULL);
+	if (modeResponse) {
+		if (!_wcsicmp(modeResponse, L"low")) {
+			*responce = LOW_RESPONCE;
+		} else if (!_wcsicmp(modeResponse, L"high")) {
+			*responce = HIGH_RESPONCE;
+		} else if (!_wcsicmp(modeResponse, L"realtime")) {
+			*responce = REALTIME_RESPONCE;
+		} else {
+			*responce = STANDARD_RESPONCE;
+		}
+	}
+	const WCHAR *screenSampling = ini.GetValue(L"Settings", L"ScreenSampling", NULL);
+	if (screenSampling) {
+		if (!_wcsicmp(screenSampling, L"low")) {
+			*sampling = LOW_SAMPLING;
+		} else if (!_wcsicmp(screenSampling, L"high")) {
+			*sampling = HIGH_SAMPLING;
+		} else {
+			*sampling = STANDARD_SAMPLING;
+		}
+	}
+	const WCHAR *soundSensitivity = ini.GetValue(L"Settings", L"SoundSensitivity", NULL);
+	if (soundSensitivity) {
+		if (!_wcsicmp(soundSensitivity, L"delta") || !_wcsicmp(soundSensitivity, L"adaptive")) {
+			*sensitivity = ADAPTIVE_SENSITIVITY;
+		} else {
+			double sense = _wtof(soundSensitivity);
+			if (sense <= 0.5) {
+				*sensitivity = PFIVE_SENSITIVITY;
+			} else if (sense < 1.98) {
+				*sensitivity = ONE_SENSITIVITY;
+			} else if (sense < 3.98) {
+				*sensitivity = TWO_SENSITIVITY;
+			} else if (sense < 7.98) {
+				*sensitivity = FOUR_SENSITIVITY;
+			} else if (sense < 15.98) {
+				*sensitivity = EIGHT_SENSITIVITY;
+			} else if (sense < 31.98) {
+				*sensitivity = SIXTEEN_SENSITIVITY;
+			} else if (sense < 63.98) {
+				*sensitivity = THIRTYTWO_SENSITIVITY;
+			} else if (sense < 127.98) {
+				*sensitivity = SIXTYFOUR_SENSITIVITY;
+			} else if (sense < 255.98) {
+				*sensitivity = ONETWOEIGHT_SENSITIVITY;
+			} else {
+				*sensitivity = TWOFIVESIX_SENSITIVITY;
+			}
+		}
+	}
+	const WCHAR *whiteBalance = ini.GetValue(L"Settings", L"WhiteBalance", NULL);
+	if (whiteBalance) {
+		int wbalance = _wtoi(whiteBalance);
+		if (wbalance == 0) {
+			*whitebalance = OFF_WHITE_BALANCE;
+		} else if (wbalance == 1) {
+			*whitebalance = ONE_WHITE_BALANCE;
+		} else if (wbalance == 3) {
+			*whitebalance = THREE_WHITE_BALANCE;
+		} else if (wbalance == 4) {
+			*whitebalance = FOUR_WHITE_BALANCE;
+		} else if (wbalance == 5) {
+			*whitebalance = FIVE_WHITE_BALANCE;
+		} else {
+			*whitebalance = TWO_WHITE_BALANCE;
+		}
+	}
+	const WCHAR *lightBrightness = ini.GetValue(L"Settings", L"LightBrightness", NULL);
+	if (lightBrightness) {
+		int lbrightness = _wtoi(lightBrightness);
+		if (lbrightness <= 10) {
+			*brightness = TEN_BRIGHTNESS;
+		} else if (lbrightness <= 20) {
+			*brightness = TWENTY_BRIGHTNESS;
+		} else if (lbrightness <= 30) {
+			*brightness = THIRTY_BRIGHTNESS;
+		} else if (lbrightness <= 40) {
+			*brightness = FOURTY_BRIGHTNESS;
+		} else if (lbrightness <= 50) {
+			*brightness = FIFTY_BRIGHTNESS;
+		} else if (lbrightness <= 60) {
+			*brightness = SIXTY_BRIGHTNESS;
+		} else if (lbrightness <= 70) {
+			*brightness = SEVENTY_BRIGHTNESS;
+		} else if (lbrightness <= 80) {
+			*brightness = EIGHTY_BRIGHTNESS;
+		} else if (lbrightness <= 90) {
+			*brightness = NINETY_BRIGHTNESS;
+		} else {
+			*brightness = ONEHUNDRED_BRIGHTNESS;
+		}
+	}
+	const WCHAR *lightingArrangement = ini.GetValue(L"Settings", L"LightingArrangement", NULL);
+	if (lightingArrangement) {
+		if (!_wcsicmp(lightingArrangement, L"surround")) {
+			*arrangement = SURROUND_ARRANGEMENT;
+		} else {
+			*arrangement = STEREO_ARRANGEMENT;
+		}
+	}
+	const bool updateIcon = ini.GetBoolValue(L"Settings", L"UpdateIcon", true);
+	*iconUpdate = updateIcon ? ICON_UPDATE_ENABLED : ICON_UPDATE_DISABLED;
+}
 
 // the entry point for any Windows program
 int WINAPI WinMain(HINSTANCE hInstance,
@@ -149,6 +306,35 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
 		ScreenMode screenMode = VIBRANT_SCREEN;
 		SpectrumMode spectrumMode = REACTIVE_SPECTRUM;
+		IlluminationPreset illumination = ORIGINAL_ILLUMINATION;
+		VisualisationPreset visualisation = NATURAL_VISUALISATION;
+		ModeResponceSetting responce = STANDARD_RESPONCE;
+		ScreenSamplingSetting sampling = STANDARD_SAMPLING;
+		WhiteBalanceSetting whiteBalance = TWO_WHITE_BALANCE;
+		LightBrightnessSetting brightness = ONEHUNDRED_BRIGHTNESS;
+		LightSensitivitySetting sensitivity = ADAPTIVE_SENSITIVITY;
+		LightingArrangementSetting arrangement = STEREO_ARRANGEMENT;
+		IconUpdateSetting iconUpdate = ICON_UPDATE_ENABLED;
+
+		WCHAR path[MAX_PATH], iniPath[MAX_PATH];
+		if (SHGetFolderPath(NULL, CSIDL_MYDOCUMENTS, NULL, 0, path) != S_OK) {
+			iniPath[0] = 0;
+		} else {
+			wstring appDir = (wstring(path) + L"\\Aurora Synesthesia\\");
+			if (CreateDirectory(appDir.c_str(), NULL) || ERROR_ALREADY_EXISTS == GetLastError()) {
+				lstrcpyn(iniPath, (appDir + L"settings.ini").c_str(), sizeof(iniPath));
+			} else {
+				iniPath[0] = 0;
+			}
+		}
+		if (iniPath[0]) {
+			CSimpleIni ini(false, true, true);
+			SI_Error rc = ini.LoadFile(iniPath);
+			if (rc >= 0) {
+				parseIni(ini, &screenMode, &spectrumMode, &illumination, &visualisation,
+					&responce, &sampling, &whiteBalance, &brightness, &sensitivity, &arrangement, &iconUpdate);
+			}
+		}
 
 		if(strcmp(lpCmdLine, "-a") == 0)
 		{
@@ -171,8 +357,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
 		Sleep(1500);
 
 		trayIcon = new Icon(hInstance, hWnd, L"Aurora Synesthesia");
-		auroraSynesthesia = new System(trayIcon, screenMode, spectrumMode, ORIGINAL_ILLUMINATION, NATURAL_VISUALISATION,
-			STANDARD_RESPONCE, STANDARD_SAMPLING, TWO_WHITE_BALANCE, ONEHUNDRED_BRIGHTNESS, ADAPTIVE_SENSITIVITY, STEREO_ARRANGEMENT);
+		auroraSynesthesia = new System(trayIcon, screenMode, spectrumMode, illumination, visualisation,
+			responce, sampling, whiteBalance, brightness, sensitivity, arrangement, iconUpdate, iniPath);
 		trayMenu = new Menu(auroraSynesthesia);
 		trayMenu->updateOptions();
 

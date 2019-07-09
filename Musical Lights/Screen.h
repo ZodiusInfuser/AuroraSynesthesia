@@ -70,6 +70,7 @@ public:
 
 	void acquireScreenRegion(RGBColour &colour, ScreenRegion &region);
 	void acquireScreenRegion(HSVColour &colour, ScreenRegion &region);
+	void takeAeroScreen(void);
 
 	bool desktopCompositionPresent(void);
 	bool changePixelProcessor(PixelProcessor* processor);
@@ -79,6 +80,8 @@ public:
 
 	void modifySampleSize(float factor);
 
+	//aero support
+	void initDIBits(void);
 private:
 	HDC screen_;
 	bool deviceContextInvalid_;
@@ -102,6 +105,13 @@ private:
 	unsigned int pixelsProcessed_;
 	COLORREF pixelColour_;
 	RGBColour rgbPixel_;
+	//aero support
+	HDC captureDC_;
+	HBITMAP bitmap_;
+	HGDIOBJ oldBitmap_;
+	BITMAPINFO bitmapInfo_;
+	BYTE *bufPixels_;
+	bool tookScreen_;
 
 	list<ColourPeriod>* colourPeriods_;
 	list<ColourPeriod>::iterator currentPeriod_;
